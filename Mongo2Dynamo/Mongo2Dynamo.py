@@ -1,3 +1,4 @@
+import ipdb
 from json import load
 from urllib.parse import quote
 
@@ -9,11 +10,10 @@ from boto3 import resource
 
 
 class ParseMongo:
-    def __init__(self, chunk_size=1000):
+    def __init__(self):
         self.db_utils = DBUtils()
         self.log = LoggerUtil(self.__class__.__name__).get()
         self.config = ConfigUtil.get_config_instance()
-        self.chunk_size = chunk_size
 
     def get_collection(self):
         username = self.config['mongo']['username']
@@ -39,11 +39,11 @@ class ParseMongo:
     @staticmethod
     def get_batch(phylogeny_collection, keys):
         query = [
-            {"$match": {"key": {"$in": keys}}},
-            {"$addFields": {"__order": {"$indexOfArray": [keys, "$key"]}}},
+            {"$match": {"vs_md5": {"$in": keys}}},
+            {"$addFields": {"__order": {"$indexOfArray": [keys, "$vs_md5"]}}},
             {"$sort": {"__order": 1}}
         ]
-        cursor = phylogeny_collection.find(query)
+        cursor = phylogeny_collection.aggregate(query)
         return cursor
 
     def init_resources(self):
@@ -54,10 +54,11 @@ class ParseMongo:
 
 
 class Mongo2Dynamo:
-    def __init__(self):
+    def __init__(self, chunk_size=1000):
         self.log = LoggerUtil(self.__class__.__name__).get()
         self.config = ConfigUtil.get_config_instance()
-        self.mongo = ParseMongo(chunk_size=1000)
+        self.chunk_size = chunk_size
+        self.mongo = ParseMongo()
 
     @staticmethod
     def init_resources(resource_name, resource_region, table_name):
@@ -77,16 +78,17 @@ class Mongo2Dynamo:
             except Exception as e:
                 self.log.error(F"Batch Write Error :{e}")
 
-    def populate(self, table, phylogeny_collection, list_of_keys, chunk_size):
+    def populate(self, table, phylogeny_collection, list_of_keys):
         """
         Populates the table with the values parsed from Mongo
         :return:
         """
         counter = 0
+        ipdb.set_trace()
         while counter < len(list_of_keys):
-            self.log.info(F"Working on Iter : #{counter / chunk_size}")
-            if counter + chunk_size < len(list_of_keys):
-                p_keys = list_of_keys[counter: counter + chunk_size]
+            self.log.info(F"Working on Iter : #{counter // self.chunk_size}")
+            if counter + self.chunk_size < len(list_of_keys):
+                p_keys = list_of_keys[counter: counter + self.chunk_size]
             else:
                 p_keys = list_of_keys[counter:]
             try:
@@ -94,23 +96,22 @@ class Mongo2Dynamo:
                 self.parse_and_put_batch(table, batch)
             except Exception as e:
                 self.log.error(F"Error : {e}")
-            counter += chunk_size
+            counter += self.chunk_size
 
     def main(self):
         """
         Driver program
         :return:
         """
-        resource_name = 'dynamodb'
-        resource_region = 'us-east-1'
-        table_name = "MalwarePhylogeny"
-        chunk_size = 1000
+        resource_name = self.config["dynamo"]["resource_name"]
+        resource_region = self.config["dynamo"]["resource_region"]
+        table_name = self.config["dynamo"]["table_name"]
         table = self.init_resources(resource_name=resource_name,
                                     resource_region=resource_region,
                                     table_name=table_name)
         phylogeny_collection, list_of_keys = self.mongo.init_resources()
         self.populate(table=table, phylogeny_collection=phylogeny_collection,
-                      list_of_keys=list_of_keys, chunk_size=chunk_size)
+                      list_of_keys=list_of_keys)
 
 
 if __name__ == '__main__':
