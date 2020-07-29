@@ -1,11 +1,11 @@
 from json import load
 from urllib.parse import quote
 
-from Utils.DBUtils import DBUtils
-from Utils.ConfigUtil import ConfigUtil
-from Utils.LoggerUtil import LoggerUtil
-
 from boto3 import resource
+
+from Utils.ConfigUtil import ConfigUtil
+from Utils.DBUtils import DBUtils
+from Utils.LoggerUtil import LoggerUtil
 
 
 class ParseMongo:
@@ -65,6 +65,10 @@ class Mongo2Dynamo:
         table = dynamodb.Table(table_name)
         return table
 
+    @staticmethod
+    def parse(doc):
+        return {k: v for k, v in doc.items() if k != "_id"}
+
     def parse_and_put_batch(self, table, batch):
         """
         For each batch of mongo documents, parse them and insert in the dynamo required format.
@@ -73,7 +77,8 @@ class Mongo2Dynamo:
         with table.batch_writer() as dynamo_batch:
             try:
                 for doc in batch:
-                    dynamo_batch.put_item(Item=doc)
+                    item = self.parse(doc)
+                    dynamo_batch.put_item(Item=item)
             except Exception as e:
                 self.log.error(F"Batch Write Error :{e}")
 
