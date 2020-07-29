@@ -1,0 +1,8 @@
+boto
+boto3
+botocore
+Deprecated
+ipdb
+pymongo
+requests
+urllib3
