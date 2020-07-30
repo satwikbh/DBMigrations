@@ -1,4 +1,5 @@
 import ipdb
+from os import environ
 from json import load
 from urllib.parse import quote
 
@@ -68,7 +69,7 @@ class Mongo2Dynamo:
 
     @staticmethod
     def parse(doc):
-        return {k: v for k, v in doc.items() if k != "_id"}
+        return {k: v for k, v in doc.items() if k in ["vs_md5", "sisters", "children"]}
 
     def parse_and_put_batch(self, table, batch):
         """
@@ -108,6 +109,12 @@ class Mongo2Dynamo:
         Driver program
         :return:
         """
+        aws_access_key_id = self.config["aws"]["aws_access_key_id"]
+        aws_secret_access_key = self.config["aws"]["aws_secret_access_key"]
+
+        environ['aws_access_key_id'] = aws_access_key_id
+        environ['aws_secret_access_key'] = aws_secret_access_key
+
         resource_name = self.config["dynamo"]["resource_name"]
         resource_region = self.config["dynamo"]["resource_region"]
         table_name = self.config["dynamo"]["table_name"]
