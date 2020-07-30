@@ -68,7 +68,7 @@ class Mongo2Dynamo:
 
     @staticmethod
     def parse(doc):
-        return {k: v for k, v in doc.items() if k != "_id"}
+        return {k: v for k, v in doc.items() if k in ["vs_md5", "sisters", "children"]}
 
     def parse_and_put_batch(self, table, batch):
         """
