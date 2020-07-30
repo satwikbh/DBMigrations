@@ -1,5 +1,5 @@
-import ipdb
 from json import load
+from os import environ
 from urllib.parse import quote
 
 from boto3 import resource
@@ -89,7 +89,6 @@ class Mongo2Dynamo:
         :return:
         """
         counter = 0
-        ipdb.set_trace()
         while counter < len(list_of_keys):
             self.log.info(F"Working on Iter : #{counter // self.chunk_size}")
             if counter + self.chunk_size < len(list_of_keys):
@@ -108,6 +107,12 @@ class Mongo2Dynamo:
         Driver program
         :return:
         """
+        aws_access_key_id = self.config["aws"]["aws_access_key_id"]
+        aws_secret_access_key = self.config["aws"]["aws_secret_access_key"]
+
+        environ['aws_access_key_id'] = aws_access_key_id
+        environ['aws_secret_access_key'] = aws_secret_access_key
+
         resource_name = self.config["dynamo"]["resource_name"]
         resource_region = self.config["dynamo"]["resource_region"]
         table_name = self.config["dynamo"]["table_name"]
